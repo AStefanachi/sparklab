@@ -1,0 +1,54 @@
+version: '3'
+
+services:
+  spark-master:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    ports:
+      - "7077:7077"  # Spark master port
+      - "8080:8080"  # Spark master web UI port
+      - "4040:4040"  # Spark App gui
+      - "8888:8888"  # Jupyter Lab
+
+    environment:
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_MASTER_PORT=7077
+      - SPARK_LOCAL_HOSTNAME=localhost
+
+    command: bash -c "/opt/spark-3.5.0-bin-hadoop3/sbin/start-master.sh && jupyter lab --ip=0.0.0.0 --NotebookApp.token='' --NotebookApp.password='' --NotebookApp.notebook_dir='/opt/spark-3.5.0-bin-hadoop3/data-mount' --allow-root"
+
+    volumes:
+      - ../../master-data:/opt/spark-3.5.0-bin-hadoop3/data-mount
+
+    networks:
+      - spark-network
+
+  spark-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    ports:
+      - "8081:8081" # Spark Worker web UI
+
+    environment:
+      - SPARK_MASTER_HOST=spark-master 
+      - SPARK_MASTER_PORT=7077  
+      - SPARK_WORKER_CORES=4  # Number of cores for the Spark worker
+      - SPARK_WORKER_MEMORY=8g  # Memory for the Spark worker 
+      - SPARK_LOCAL_HOSTNAME=localhost
+ 
+    command: bash -c "/opt/spark-3.5.0-bin-hadoop3/sbin/start-worker.sh spark://spark-master:7077 && sleep infinity"
+
+    volumes:
+      - ../../worker-data:/opt/spark-3.5.0-bin-hadoop3/data-mount
+
+    networks:
+      - spark-network
+
+networks:
+  spark-network:
+    external: true
+    driver: bridge
